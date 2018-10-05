@@ -226,7 +226,7 @@ public:
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
 		// Initialize mesh.
 		shape = make_shared<Shape>();
-		shape->loadMesh(resourceDirectory + "/sphere.obj");
+		shape->loadMesh(resourceDirectory + "/t800.obj");
 		shape->resize(); 
 		shape->init();
 			
@@ -400,21 +400,19 @@ public:
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, TextureEarth);
 	
-		shape->draw(prog);	//draw earth
-							
-		//	******		moon		******
-		static float moonangle = 0;
-		moonangle += 0.005;
-		M = glm::translate(glm::mat4(1.f), glm::vec3(-1.5, 0, 1.5));
-		glm::mat4 Ryrad = glm::rotate(glm::mat4(1.f), moonangle, glm::vec3(0, 1, 0));
-		T = glm::translate(glm::mat4(1.f), glm::vec3(0, 0, -5));
-		S = glm::scale(glm::mat4(1.f), glm::vec3(0.25, 0.25, 0.25));
-		M = T * Ryrad * M * Rx * S;
-		glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, TextureMoon);
-		
-		shape->draw(prog);	//draw moon
+		int size = 1;
+
+		//for (int i = -size; i <=size; i++)
+			//for (int j = -size; i <= size; j++)
+				for (int k = -size; k <= size; k++) {
+
+					M = glm::translate(glm::mat4(1.f), glm::vec3(0, 0, -5));
+					T = translate(mat4(1.0f), vec3(k, 0, 0));
+
+					M = M * T* Ry * Rx;
+					glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+					shape->draw(prog);	//draw earth
+				}							
 
 		//done, unbind stuff
 		prog->unbind();
