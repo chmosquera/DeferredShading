@@ -36,7 +36,7 @@ public:
 	WindowManager * windowManager = nullptr;
 
 	// Our shader program
-	std::shared_ptr<Program> prog,prog2;
+	std::shared_ptr<Program> prog,prog2, prog_justdata;
 
 	// Shape to be used (from obj file)
 	shared_ptr<Shape> shape;
@@ -45,9 +45,8 @@ public:
 	camera mycam;
 
 	//texture for sim
-	GLuint TextureEarth;
-	GLuint TextureMoon,FBOtex, FBOtex2 , fb, fb2, depth_rb, depth_rb2;
-
+	GLuint TextureMoon, TextureEarth,FBOtex, FBOtex2, fb2, depth_rb, depth_rb2;
+	GLuint geomFB, posTex, normTex, matTex;
 	GLuint VertexArrayIDBox, VertexBufferIDBox, VertexBufferTex;
 	
 	// Contains vertex information for OpenGL
@@ -170,6 +169,24 @@ public:
 		prog2->addUniform("secondPass");
 		prog2->addAttribute("vertPos");
 		prog2->addAttribute("vertTex");
+		prog2->addAttribute("vertNor");
+
+		prog_justdata = make_shared<Program>();
+		prog_justdata->setVerbose(true);
+		prog_justdata->setShaderNames(resourceDirectory + "/justdata_vert.glsl", resourceDirectory + "/justdata_frag.glsl");
+		if (!prog_justdata->init())
+		{
+			std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
+			exit(1);
+		}
+		prog_justdata->init();
+		prog_justdata->addUniform("P");
+		prog_justdata->addUniform("V");
+		prog_justdata->addUniform("M");
+		prog_justdata->addUniform("campos");
+		prog_justdata->addAttribute("vertPos");
+		prog_justdata->addAttribute("vertTex");
+		prog_justdata->addAttribute("vertNor");
 	}
 
 	void initGeom(const std::string& resourceDirectory)
@@ -271,12 +288,15 @@ public:
 		glUniform1i(Tex1Location, 0);
 		glUniform1i(Tex2Location, 1);
 
-
-		/* Frame Buffer - 1*/
+		/* ------------------------------- */
+		/* ---- Geometry Frame Buffer ---- */
+		/* ------------------------------- */
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
+		
+		/* Material Texture */
 		//RGBA8 2D texture, 24 bit depth texture, 256x256
-		glGenTextures(1, &FBOtex);
-		glBindTexture(GL_TEXTURE_2D, FBOtex);
+		glGenTextures(1, &matTex);
+		glBindTexture(GL_TEXTURE_2D, matTex);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -284,18 +304,39 @@ public:
 		//NULL means reserve texture memory, but texels are undefined
 		//**** Tell OpenGL to reserve level 0. Why? Defines the mipmap. 0 is highest res.
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
-
 		//You must reserve memory for other mipmaps levels as well either by making a series of calls to
 		//glTexImage2D or use glGenerateMipmapEXT(GL_TEXTURE_2D).
 		//Here, we'll use :
 		glGenerateMipmap(GL_TEXTURE_2D);
 
+		/* Position Texture */
+		glGenTextures(1, &posTex);
+		glBindTexture(GL_TEXTURE_2D, posTex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_BGRA, GL_FLOAT, NULL);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		/* Normal Texture */
+		glGenTextures(1, &normTex);
+		glBindTexture(GL_TEXTURE_2D, normTex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_BGRA, GL_FLOAT, NULL);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
 		//-------------------------
-		glGenFramebuffers(1, &fb);
-		glBindFramebuffer(GL_FRAMEBUFFER, fb);
+		glGenFramebuffers(1, &geomFB);
+		glBindFramebuffer(GL_FRAMEBUFFER, geomFB);
 
 		//Attach 2D texture to this FBO
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FBOtex, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, matTex, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, posTex, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, normTex, 0);
 
 		//-------------------------
 		glGenRenderbuffers(1, &depth_rb);
@@ -362,11 +403,14 @@ public:
 		}
 	//*************************************
 	
-	void render_to_texture() // aka render to framebuffer
+	void RenderToGeomBuffer() // aka render to framebuffer
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, fb);
+		glBindFramebuffer(GL_FRAMEBUFFER, geomFB);
 		glClearColor(0.0, 0.0, 0.0, 0.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		GLenum buffers[] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
+		glDrawBuffers(3, buffers);
+
 		// Get current frame buffer size.
 		int width, height;
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
@@ -377,16 +421,11 @@ public:
 		P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f); //so much type casting... GLM metods are quite funny ones
 		V = mycam.process();
 
-
-		// Clear framebuffer.
-		// Why do you clear the framebuffer?
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 		//bind shader and copy matrices
-		prog->bind();
-		glUniformMatrix4fv(prog->getUniform("P"), 1, GL_FALSE, &P[0][0]);
-		glUniformMatrix4fv(prog->getUniform("V"), 1, GL_FALSE, &V[0][0]);
-		glUniform3fv(prog->getUniform("campos"), 1, &mycam.pos.x);
+		prog_justdata->bind();
+		glUniformMatrix4fv(prog_justdata->getUniform("P"), 1, GL_FALSE, &P[0][0]);
+		glUniformMatrix4fv(prog_justdata->getUniform("V"), 1, GL_FALSE, &V[0][0]);
+		glUniform3fv(prog_justdata->getUniform("campos"), 1, &mycam.pos.x);
 
 		//	******		earth		******
 		static float angle = 0;
@@ -396,29 +435,28 @@ public:
 		float pih = -3.1415926 / 2.0;
 		glm::mat4 Rx = glm::rotate(glm::mat4(1.f), pih, glm::vec3(1, 0, 0));
 		M = M * Ry * Rx;
-		glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		glUniformMatrix4fv(prog_justdata->getUniform("M"), 1, GL_FALSE, &M[0][0]);
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, TextureEarth);
-	
+		glBindTexture(GL_TEXTURE_2D, matTex);
 		int size = 1;
 
-		//for (int i = -size; i <=size; i++)
-			//for (int j = -size; i <= size; j++)
+		for (int i = -size; i <= size; i++) {
+			for (int j = -size; j <= size; j++) {
 				for (int k = -size; k <= size; k++) {
 
+					float padding = 2.0;
 					M = glm::translate(glm::mat4(1.f), glm::vec3(0, 0, -5));
-					T = translate(mat4(1.0f), vec3(k, 0, 0));
+					T = translate(mat4(1.0f), vec3(i* padding, j*padding, k*padding));
 
-					M = M * T* Ry * Rx;
-					glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
-					shape->draw(prog);	//draw earth
-				}							
+					M = M * T * Ry * Rx;
+					glUniformMatrix4fv(prog_justdata->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+					shape->draw(prog_justdata);
+				}
+			}
+		}
 
-		//done, unbind stuff
-		prog->unbind();
-		//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		//glBindTexture(GL_TEXTURE_2D, FBOtex);
-		//glGenerateMipmap(GL_TEXTURE_2D);
+		prog_justdata->unbind();
+
 	}
 
 	void render_to_texture2() // aka render to framebuffer
@@ -486,7 +524,7 @@ public:
 
 		int secondPass = 1;
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, FBOtex2);
+		glBindTexture(GL_TEXTURE_2D, matTex);
 		M = glm::scale(glm::mat4(1), glm::vec3(1.2, 1, 1)) * glm::translate(glm::mat4(1), glm::vec3(-0.5, -0.5, -1));
 		glUniformMatrix4fv(prog2->getUniform("P"), 1, GL_FALSE, glm::value_ptr(P->topMatrix()));
 		glUniformMatrix4fv(prog2->getUniform("V"), 1, GL_FALSE, &V[0][0]);
@@ -531,7 +569,7 @@ int main(int argc, char **argv)
 	while (! glfwWindowShouldClose(windowManager->getHandle()))
 	{
 		// Render scene.
-		application->render_to_texture();
+		application->RenderToGeomBuffer();
 		application->render_to_texture2();
 		application->render_to_screen();
 		

@@ -43,5 +43,11 @@
     <None Include="..\resources\frag_nolight.glsl">
       <Filter>shader</Filter>
     </None>
+    <None Include="..\resources\justdata_frag.glsl">
+      <Filter>shader</Filter>
+    </None>
+    <None Include="..\resources\justdata_vert.glsl">
+      <Filter>shader</Filter>
+    </None>
   </ItemGroup>
 </Project>
