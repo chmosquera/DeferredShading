@@ -247,7 +247,7 @@ public:
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, (void*)0);
 		// Initialize mesh.
 		shape = make_shared<Shape>();
-		shape->loadMesh(resourceDirectory + "/sphere.obj");
+		shape->loadMesh(resourceDirectory + "/t800.obj");
 		shape->resize(); 
 		shape->init();
 			
