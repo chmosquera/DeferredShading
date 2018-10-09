@@ -22,7 +22,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 using namespace std;
 using namespace glm;
-
+const int DEFERRED = 0;
 
 
 
@@ -35,8 +35,10 @@ public:
 
 	WindowManager * windowManager = nullptr;
 
+	int size = 5;
+
 	// Our shader program
-	std::shared_ptr<Program> prog,prog2, prog_justdata;
+	std::shared_ptr<Program> prog,prog2, prog_nondeferred;
 
 	// Shape to be used (from obj file)
 	shared_ptr<Shape> shape;
@@ -167,27 +169,28 @@ public:
 		prog2->addUniform("P");
 		prog2->addUniform("V");
 		prog2->addUniform("M");
+		prog2->addUniform("campos");
 		prog2->addAttribute("vertPos");
 		prog2->addAttribute("vertTex");
-
 		prog2->addAttribute("vertNor");
 
-		prog_justdata = make_shared<Program>();
-		prog_justdata->setVerbose(true);
-		prog_justdata->setShaderNames(resourceDirectory + "/justdata_vert.glsl", resourceDirectory + "/justdata_frag.glsl");
-		if (!prog_justdata->init())
+		prog_nondeferred = make_shared<Program>();
+		prog_nondeferred->setVerbose(true);
+		prog_nondeferred->setShaderNames(resourceDirectory + "/nondeferred_vert.glsl", resourceDirectory + "/nondeferred_frag.glsl");
+		if (!prog_nondeferred->init())
 		{
 			std::cerr << "One or more shaders failed to compile... exiting!" << std::endl;
 			exit(1);
 		}
-		prog_justdata->init();
-		prog_justdata->addUniform("P");
-		prog_justdata->addUniform("V");
-		prog_justdata->addUniform("M");
-		prog_justdata->addUniform("campos");
-		prog_justdata->addAttribute("vertPos");
-		prog_justdata->addAttribute("vertTex");
-		prog_justdata->addAttribute("vertNor");
+		prog_nondeferred->init();
+		prog_nondeferred->addUniform("P");
+		prog_nondeferred->addUniform("V");
+		prog_nondeferred->addUniform("M");
+		prog_nondeferred->addUniform("campos");
+		prog_nondeferred->addAttribute("vertPos");
+		prog_nondeferred->addAttribute("vertNor");
+		prog_nondeferred->addAttribute("vertTex");
+
 	}
 
 	void initGeom(const std::string& resourceDirectory)
@@ -266,28 +269,17 @@ public:
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
 		
-		//texture moon
-		str = resourceDirectory + "/moon.jpg";
-		strcpy(filepath, str.c_str());
-		data = stbi_load(filepath, &width, &height, &channels, 4);
-		glGenTextures(1, &TextureMoon);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, TextureMoon);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-		
 		//[TWOTEXTURES]
 		//set the 2 textures to the correct samplers in the fragment shader:
 		GLuint Tex1Location = glGetUniformLocation(prog->pid, "tex");//tex, tex2... sampler in the fragment shader
-		GLuint Tex2Location = glGetUniformLocation(prog->pid, "tex2");
 		// Then bind the uniform samplers to texture units:
 		glUseProgram(prog->pid);
 		glUniform1i(Tex1Location, 0);
-		glUniform1i(Tex2Location, 1);
+
+		Tex1Location = glGetUniformLocation(prog_nondeferred->pid, "tex");//tex, tex2... sampler in the fragment shader
+		glUseProgram(prog_nondeferred->pid);
+		glUniform1i(Tex1Location, 0);
+
 
 		glUseProgram(prog2->pid);
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
@@ -302,10 +294,6 @@ public:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_BGRA, GL_UNSIGNED_BYTE, NULL);
-
-		//You must reserve memory for other mipmaps levels as well either by making a series of calls to
-		//glTexImage2D or use glGenerateMipmapEXT(GL_TEXTURE_2D).
-		//Here, we'll use :
 		glGenerateMipmap(GL_TEXTURE_2D);
 			
 
@@ -318,15 +306,17 @@ public:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_BGRA, GL_FLOAT, NULL);
+		glGenerateMipmap(GL_TEXTURE_2D);
 	
 		glGenTextures(1, &gNormal);
-		glActiveTexture(GL_TEXTURE1);
+		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, gNormal);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_BGRA, GL_FLOAT, NULL);
+		glGenerateMipmap(GL_TEXTURE_2D);
 		
 		//Attach 2D texture to this FBO
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gColor, 0);
@@ -343,10 +333,13 @@ public:
 		//Does the GPU support current FBO configuration?
 
 		
-		int Tex1Loc = glGetUniformLocation(prog2->pid, "tex");//tex, tex2... sampler in the fragment shader
-		int Tex2Loc = glGetUniformLocation(prog2->pid, "tex2");
+		// Send all 3 textures to the second program
+		int Tex1Loc = glGetUniformLocation(prog2->pid, "gColor");//tex, tex2... sampler in the fragment shader
+		int Tex2Loc = glGetUniformLocation(prog2->pid, "gViewPos");
+		int Tex3Loc = glGetUniformLocation(prog2->pid, "gNormal");
 		glUniform1i(Tex1Loc, 0);
 		glUniform1i(Tex2Loc, 1);
+		glUniform1i(Tex3Loc, 2);
 
 		GLenum status;
 		status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -356,7 +349,7 @@ public:
 			cout << "status framebuffer: good";
 			break;
 		default:
-			cout << "status framebuffer: bad!!!!!!!!!!!!!!!!!!!!!!!!!";
+			cout << "status framebuffer: bad";
 		}
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
@@ -404,6 +397,7 @@ public:
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, gNormal);
 		M = glm::scale(glm::mat4(1),glm::vec3(1.2,1,1)) * glm::translate(glm::mat4(1), glm::vec3(-0.5, -0.5, -1));
+		glUniform3fv(prog2->getUniform("campos"), 1, &mycam.pos.x);
 		glUniformMatrix4fv(prog2->getUniform("P"), 1, GL_FALSE, glm::value_ptr(P->topMatrix()));
 		glUniformMatrix4fv(prog2->getUniform("V"), 1, GL_FALSE, &V[0][0]);
 		glUniformMatrix4fv(prog2->getUniform("M"), 1, GL_FALSE, &M[0][0]);
@@ -422,6 +416,18 @@ public:
 
 
 		double frametime = get_last_elapsed_time();
+		static double totalTime = 0;
+		static int count = 0;
+		if (count >= 100) {
+			std::cout << "Deferred - time: " <<  totalTime/100.0 << endl;
+			std::cout << "Deferred - time: " << totalTime << endl;
+		}
+		else {
+			count++;
+			totalTime += frametime;
+			std::cout << totalTime << endl;
+		}
+
 		glClearColor(0.0, 0.0, 0.0, 0.0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		// Get current frame buffer size.
@@ -432,9 +438,6 @@ public:
 
 		glm::mat4 M, V, S, T, P;
 		P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f); //so much type casting... GLM metods are quite funny ones
-
-		
-
 		V = mycam.process();
 
 
@@ -456,23 +459,95 @@ public:
 		glBindTexture(GL_TEXTURE_2D, TextureEarth);
 
 
-		int size = 3;
+		//int size = 3;
 
-		//for (int i = -size; i <=size; i++)
-		//for (int j = -size; i <= size; j++)
+		for (int i = -size; i <=size; i++)
+		for (int j = -size; j <= size; j++)
 		for (int k = -size; k <= size; k++) {
 
+			int padding = 3.0f;
+
 			M = glm::translate(glm::mat4(1.f), glm::vec3(0, 0, -5));
-			T = translate(mat4(1.0f), vec3(k, 0, 0));
+			T = translate(mat4(1.0f), vec3(padding * i, padding * j, padding * k));
 
 			M = M * T* Ry * Rx;
 			glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
-			shape->draw(prog, true);	//draw earth
+			shape->draw(prog, true);
 		}
 	
 		
 		//done, unbind stuff
 		prog->unbind();
+	}
+
+	void render_nondeferred() {
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		double frametime = get_last_elapsed_time();
+		static double totalTime = 0;
+		static int count = 0;
+
+		if (count >= 100) {
+			std::cout << "Nondeferred - time: " << totalTime / 100.00 << endl;
+			std::cout << "Nondeferred - time: " << totalTime  << endl;
+		}
+		else {
+			count++;
+			totalTime += frametime;
+			std::cout << totalTime << endl;
+		}
+
+
+
+		glClearColor(0.0, 0.0, 0.0, 1.0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		// Get current frame buffer size.
+		int width, height;
+		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
+		float aspect = width / (float)height;
+		glViewport(0, 0, width, height);
+
+		glm::mat4 M, V, S, T, P;
+		P = glm::perspective((float)(3.14159 / 4.), (float)((float)width / (float)height), 0.1f, 1000.0f); //so much type casting... GLM metods are quite funny ones
+		V = mycam.process();
+
+
+		//bind shader and copy matrices
+		prog_nondeferred->bind();
+		glUniformMatrix4fv(prog_nondeferred->getUniform("P"), 1, GL_FALSE, &P[0][0]);
+		glUniformMatrix4fv(prog_nondeferred->getUniform("V"), 1, GL_FALSE, &V[0][0]);
+		glUniform3fv(prog_nondeferred->getUniform("campos"), 1, &mycam.pos.x);
+
+		static float angle = 0;
+		angle += 0.02*frametime;
+		M = glm::translate(glm::mat4(1.f), glm::vec3(0, 0, -5));
+		glm::mat4 Ry = glm::rotate(glm::mat4(1.f), angle, glm::vec3(0, 1, 0));
+		float pih = -3.1415926 / 2.0;
+		glm::mat4 Rx = glm::rotate(glm::mat4(1.f), pih, glm::vec3(1, 0, 0));
+		M = M * Ry * Rx;
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, TextureEarth);
+
+
+		//int size = 3;
+
+		for (int i = -size; i <= size; i++)
+			for (int j = -size; j <= size; j++)
+				for (int k = -size; k <= size; k++) {
+
+					int padding = 3.0f;
+
+					M = glm::translate(glm::mat4(1.f), glm::vec3(0, 0, -5));
+					T = translate(mat4(1.0f), vec3(padding * i, padding * j, padding * k));
+
+					M = M * T* Ry * Rx;
+					glUniformMatrix4fv(prog_nondeferred->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+					shape->draw(prog_nondeferred, true);
+				}
+
+
+		//done, unbind stuff
+		prog_nondeferred->unbind();
 	}
 };
 //*********************************************************************************************************
@@ -507,8 +582,13 @@ int main(int argc, char **argv)
 	{
 		// Render scene.
 
-		application->render_to_texture();
-		application->render_to_screen();
+		if (DEFERRED == 1) {
+			application->render_to_texture();
+			application->render_to_screen();
+		}
+		else {
+			application->render_nondeferred();
+		}
 		
 		// Swap front and back buffers.
 		glfwSwapBuffers(windowManager->getHandle());

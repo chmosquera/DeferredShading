@@ -7,8 +7,7 @@ uniform mat4 V;
 uniform mat4 M;
 out vec2 fragTex;
 
-void main()
-{
-gl_Position = P * V * M * vertPos;
-fragTex = vertTex;
+void main() {
+	gl_Position = P * V * M * vertPos;
+	fragTex = vertTex;
 }

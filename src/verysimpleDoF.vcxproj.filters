@@ -46,7 +46,10 @@
     <None Include="..\resources\justdata_frag.glsl">
       <Filter>shader</Filter>
     </None>
-    <None Include="..\resources\justdata_vert.glsl">
+    <None Include="..\resources\nondeferred_frag.glsl">
+      <Filter>shader</Filter>
+    </None>
+    <None Include="..\resources\nondeferred_vert.glsl">
       <Filter>shader</Filter>
     </None>
   </ItemGroup>

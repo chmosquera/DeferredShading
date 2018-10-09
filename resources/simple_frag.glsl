@@ -9,7 +9,7 @@ in vec2 fragTex;
 in vec3 fragNor;
 in vec4 fragViewPos;
 
-uniform vec3 campos;
+//uniform vec3 campos;
 
 layout(location = 0) uniform sampler2D tex;
 layout(location = 1) uniform sampler2D tex2;
@@ -35,9 +35,9 @@ void main()
 	//gColor.rgb = texturecolor *light + vec3(1,1,1)*spec;
 	gColor.rgb = texture(tex, fragTex).rgb;
 	gColor.a=1;
-	gViewpos = fragViewPos;
-	gViewpos.z*=-1;
+	gViewpos = vec4(fragPos, 1.0);
+	
 
 	gNormal = vec4(fragNor, 1);
-
+	
 }

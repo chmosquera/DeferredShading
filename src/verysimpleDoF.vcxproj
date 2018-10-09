@@ -141,7 +141,8 @@
   <ItemGroup>
     <None Include="..\resources\frag_nolight.glsl" />
     <None Include="..\resources\justdata_frag.glsl" />
-    <None Include="..\resources\justdata_vert.glsl" />
+    <None Include="..\resources\nondeferred_frag.glsl" />
+    <None Include="..\resources\nondeferred_vert.glsl" />
     <None Include="..\resources\simple_frag.glsl" />
     <None Include="..\resources\simple_vert.glsl" />
     <None Include="..\resources\vert.glsl" />
