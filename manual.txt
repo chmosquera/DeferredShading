@@ -1,0 +1,4 @@
+deferred time: 0.0511070
+nondeferred time: 0.0514191
+
+To switch between modes, find constant variable DEFERRED. Set to 1 for deferred, and 0 for nondeferred.
