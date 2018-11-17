@@ -35,7 +35,7 @@ void main()
 	//gColor.rgb = texturecolor *light + vec3(1,1,1)*spec;
 	gColor.rgb = texture(tex, fragTex).rgb;
 	gColor.a=1;
-	gViewpos = vec4(fragPos, 1.0);
+	gViewpos = fragViewPos;//vec4(fragPos, 1.0);
 	
 
 	gNormal = vec4(fragNor, 1);

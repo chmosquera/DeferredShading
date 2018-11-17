@@ -22,7 +22,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 using namespace std;
 using namespace glm;
-const int DEFERRED = 0;
+const int DEFERRED = 1;
 
 
 
@@ -35,7 +35,7 @@ public:
 
 	WindowManager * windowManager = nullptr;
 
-	int size = 5;
+	int size = 1;
 
 	// Our shader program
 	std::shared_ptr<Program> prog,prog2, prog_nondeferred;
@@ -280,8 +280,6 @@ public:
 		glUseProgram(prog_nondeferred->pid);
 		glUniform1i(Tex1Location, 0);
 
-
-		glUseProgram(prog2->pid);
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		glGenFramebuffers(1, &gBuffer);
 		glActiveTexture(GL_TEXTURE0);
@@ -300,7 +298,6 @@ public:
 		glGenTextures(1, &gViewpos);
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, gViewpos);
-
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -337,9 +334,11 @@ public:
 		int Tex1Loc = glGetUniformLocation(prog2->pid, "gColor");//tex, tex2... sampler in the fragment shader
 		int Tex2Loc = glGetUniformLocation(prog2->pid, "gViewPos");
 		int Tex3Loc = glGetUniformLocation(prog2->pid, "gNormal");
+		glUseProgram(prog2->pid);
 		glUniform1i(Tex1Loc, 0);
 		glUniform1i(Tex2Loc, 1);
 		glUniform1i(Tex3Loc, 2);
+
 
 		GLenum status;
 		status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -373,7 +372,6 @@ public:
 		glBindTexture(GL_TEXTURE_2D, gNormal);
 		glGenerateMipmap(GL_TEXTURE_2D);
 
-
 		int width, height;
 		glfwGetFramebufferSize(windowManager->getHandle(), &width, &height);
 		float aspect = width / (float)height;
@@ -383,19 +381,18 @@ public:
 		P->pushMatrix();	
 		P->perspective(70., width, height, 0.1, 100.0f);
 		glm::mat4 M,V,S,T;		
-	
 		V = glm::mat4(1);
 		
 		// Clear framebuffer.
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);		
 
 		prog2->bind();
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, gColor);
+		//glActiveTexture(GL_TEXTURE0);
+		//glBindTexture(GL_TEXTURE_2D, gColor);
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, gViewpos);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, gNormal);
+		//glActiveTexture(GL_TEXTURE2);
+		//glBindTexture(GL_TEXTURE_2D, gNormal);
 		M = glm::scale(glm::mat4(1),glm::vec3(1.2,1,1)) * glm::translate(glm::mat4(1), glm::vec3(-0.5, -0.5, -1));
 		glUniform3fv(prog2->getUniform("campos"), 1, &mycam.pos.x);
 		glUniformMatrix4fv(prog2->getUniform("P"), 1, GL_FALSE, glm::value_ptr(P->topMatrix()));
@@ -458,9 +455,6 @@ public:
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, TextureEarth);
 
-
-		//int size = 3;
-
 		for (int i = -size; i <=size; i++)
 		for (int j = -size; j <= size; j++)
 		for (int k = -size; k <= size; k++) {
@@ -474,6 +468,13 @@ public:
 			glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
 			shape->draw(prog, true);
 		}
+
+		// Just render 1
+		//M = glm::translate(glm::mat4(1.f), glm::vec3(0, 0, -5));
+
+		//M = M * T;
+		//glUniformMatrix4fv(prog->getUniform("M"), 1, GL_FALSE, &M[0][0]);
+		//shape->draw(prog, true);
 	
 		
 		//done, unbind stuff
